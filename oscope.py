@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 
 # Audio oscilloscope 
 
@@ -42,7 +42,7 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         self.curves=[]
         self.x = np.arange(self.maxChunks*self.chunkSize)/self.fs
         self.y = np.zeros(self.maxChunks*self.chunkSize)
-        print 'fs=',self.fs,len(self.x)
+        print('fs=',self.fs,len(self.x))
         self.data=np.zeros(self.chunkSize)
 
         # Start by putting up the root window
@@ -109,9 +109,10 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         self.p=p
 
         # This is where the WIDTH influences the data format - keep it at 2 bytes for now --> int16
-        print p.get_format_from_width(WIDTH)
-        print pyaudio.paFloat32, pyaudio.paInt32, pyaudio.paInt24, pyaudio.paInt16, pyaudio.paInt8, \
-            pyaudio.paUInt8, pyaudio.paCustomFormat
+        print( p.get_format_from_width(WIDTH) )
+        print( pyaudio.paFloat32, pyaudio.paInt32, pyaudio.paInt24,
+               pyaudio.paInt16, pyaudio.paInt8, \
+               pyaudio.paUInt8, pyaudio.paCustomFormat )
         
         self.stream = p.open(format=p.get_format_from_width(WIDTH),
                              channels=CHANNELS,
@@ -146,7 +147,7 @@ if __name__ == "__main__":
     if True:
         timer = pg.QtCore.QTimer()
         timer.timeout.connect(gui.update)
-        print 1000.*gui.chunkSize/gui.fs
+        print( 1000.*gui.chunkSize/gui.fs )
         timer.start(1000.*gui.chunkSize/gui.fs)
 
     print('And away we go ...')
