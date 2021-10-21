@@ -108,6 +108,18 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         p = pyaudio.PyAudio()
         self.p=p
 
+        if True:
+            info = p.get_host_api_info_by_index(0)
+            numdev = info.get('deviceCount')
+            print('\n',numdev,'audio devices found:')
+            for i in range(0,numdev):
+                dev_info = p.get_device_info_by_host_api_device_index(0,i)
+                #print(dev_info)
+                name = dev_info.get('name')
+                srate = dev_info.get('defaultSampleRate')
+                print('Device',i,'\t:',name,srate)
+            print(' ')
+
         # This is where the WIDTH influences the data format - keep it at 2 bytes for now --> int16
         print( p.get_format_from_width(WIDTH) )
         print( pyaudio.paFloat32, pyaudio.paInt32, pyaudio.paInt24,
@@ -127,7 +139,10 @@ class OSCOPE_GUI(QtGui.QMainWindow):
     def wire_callback(self,in_data, frame_count, time_info, status):
         # Update data for gui but we can't call the gui update from here since the audio callback
         # is in a different thread
-        gui.data = np.fromstring(in_data, dtype=np.int16)
+        #print(in_data)
+        #gui.data = np.fromstring(in_data, dtype=np.int16)
+        gui.data = np.frombuffer(in_data, dtype=np.int16)
+        #print(gui.data)
         return (in_data, pyaudio.paContinue)
 
 ################################################################################
@@ -148,7 +163,7 @@ if __name__ == "__main__":
         timer = pg.QtCore.QTimer()
         timer.timeout.connect(gui.update)
         print( 1000.*gui.chunkSize/gui.fs )
-        timer.start(1000.*gui.chunkSize/gui.fs)
+        timer.start(int(1000.*gui.chunkSize/gui.fs))
 
     print('And away we go ...')
     sys.exit(app.exec_())
