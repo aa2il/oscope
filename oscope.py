@@ -1,7 +1,23 @@
 #! /usr/bin/python3
-
-# Audio oscilloscope 
-
+################################################################################
+#
+# oscope.py - Rev 1.0
+# Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
+#
+# Audio oscilloscope and recorder
+#
+################################################################################
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
 ################################################################################
 
 import pyaudio
@@ -13,9 +29,8 @@ import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 
-colors=['b','g','r','c','m','y','k',
-        'dodgerblue','lime','orange','aqua','indigo','gold','gray',
-        'navy','limegreen','tomato','cyan','purple','yellow','dimgray']
+#from audio_io import WaveRecorder
+import wave, struct
 
 ################################################################################
 
@@ -26,6 +41,10 @@ CHANNELS = 1
 RATE = 44100
 RATE = 48000
 RATE = 8000
+
+colors=['b','g','r','c','m','y','k',
+        'dodgerblue','lime','orange','aqua','indigo','gold','gray',
+        'navy','limegreen','tomato','cyan','purple','yellow','dimgray']
 
 ################################################################################
 
@@ -89,9 +108,14 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         
     # Function to quit the app
     def Quit(self):
+        #self.rec.stop_recording()
+
         self.stream.stop_stream()
         self.stream.close()
         self.p.terminate()
+        
+        #self.wf.writeframes('')
+        self.wf.close()
         
         self.win.destroy()
         print("\nThat's all folks!\n")
@@ -143,7 +167,13 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         #gui.data = np.fromstring(in_data, dtype=np.int16)
         gui.data = np.frombuffer(in_data, dtype=np.int16)
         #print(gui.data)
+
+        if True:
+            #print(in_data)
+            self.wf.writeframesraw( in_data )
+        
         return (in_data, pyaudio.paContinue)
+
 
 ################################################################################
 
@@ -153,17 +183,35 @@ if __name__ == "__main__":
     print('\n   Audio Oscilloscope beginning ...\n')
     
     app  = QtGui.QApplication(sys.argv)
-    gui  = OSCOPE_GUI(8000)
+    gui  = OSCOPE_GUI(RATE)
 
     # Open audio loopback (virtual wire from mic to speakers)
     gui.open_audio_wire()
-    
-    # Setup a timer to update the plot at the chunk rate of the audio wire
+
+    # Start audio recorder
+    if False:
+        gui.rec = WaveRecorder('junk.wav', 'wb')
+        #idx=rec.list_input_devices('USB Audio CODEC')
+        idx=gui.rec.list_input_devices('default')
+        if idx:
+            gui.rec.start_recording(idx)
+            time.sleep(5.0)
+        else:
+            print('Cant find radio USB Audio CODEC :-(')
+            sys.exit(0)
+
     if True:
-        timer = pg.QtCore.QTimer()
-        timer.timeout.connect(gui.update)
-        print( 1000.*gui.chunkSize/gui.fs )
-        timer.start(int(1000.*gui.chunkSize/gui.fs))
+        wf = wave.open('junk.wav','w')
+        wf.setnchannels(1)
+        wf.setsampwidth(2) 
+        wf.setframerate(RATE)
+        gui.wf=wf
+            
+    # Setup a timer to update the plot at the chunk rate of the audio wire
+    timer = pg.QtCore.QTimer()
+    timer.timeout.connect(gui.update)
+    print( 1000.*gui.chunkSize/gui.fs )
+    timer.start(int(1000.*gui.chunkSize/gui.fs))
 
     print('And away we go ...')
     sys.exit(app.exec_())
