@@ -2,7 +2,7 @@
 ################################################################################
 #
 # oscope.py - Rev 1.0
-# Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-2 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Audio oscilloscope and recorder
 #
@@ -23,13 +23,9 @@
 import pyaudio
 import time
 import sys
-#from datetime import timedelta,datetime
-#from collections import OrderedDict
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
-
-#from audio_io import WaveRecorder
 import wave, struct
 
 ################################################################################
@@ -62,13 +58,13 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         self.x = np.arange(self.maxChunks*self.chunkSize)/self.fs
         self.y = np.zeros(self.maxChunks*self.chunkSize)
         print('fs=',self.fs,len(self.x))
-        self.data=np.zeros(self.chunkSize)
+        self.wf=None
 
         # Start by putting up the root window
         print('Init GUI ...')
         self.win  = QtGui.QWidget()
         self.setCentralWidget(self.win)
-        self.setWindowTitle('Audio oscilloscope by AA2IL')
+        self.setWindowTitle('Audio Oscilloscope by AA2IL')
 
         # We use a simple grid to layout controls
         self.grid = QtGui.QGridLayout(self.win)
@@ -83,16 +79,18 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         btn.clicked.connect(self.Quit)
         self.grid.addWidget(btn,row,col)
 
-        # The Canvas is where we will put the map
+        # The Canvas is where we will put the plot
         row=1
         col=0
         self.canvas = pg.GraphicsWindow()
         self.grid.addWidget(self.canvas,row,col)
         self.p1 = self.canvas.addPlot()
-        self.p1.setLabel('bottom', 'Time', 's')
+        #self.p1.setLabel('bottom', 'Time', 's')
         self.curve = self.p1.plot(pen='r')
         #self.p1.enableAutoRange('xy', False)
         #self.p1.setXRange(0, np.max(self.x))
+        self.p1.showAxis('left',False)
+        self.p1.showAxis('bottom',False)
         
         # Allow canvas size to change when we resize the window
         # but make is always visible
@@ -102,7 +100,7 @@ class OSCOPE_GUI(QtGui.QMainWindow):
             self.canvas.setSizePolicy(sizePolicy)
         
         # Let's roll!
-        self.resize(200,0)
+        self.resize(500,0)
         self.show()
         #self.win.resize(self.win.minimumSizeHint())
         
@@ -113,9 +111,10 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         self.stream.stop_stream()
         self.stream.close()
         self.p.terminate()
-        
-        #self.wf.writeframes('')
-        self.wf.close()
+
+        if self.wf:
+            #self.wf.writeframes('')
+            self.wf.close()
         
         self.win.destroy()
         print("\nThat's all folks!\n")
@@ -123,8 +122,6 @@ class OSCOPE_GUI(QtGui.QMainWindow):
 
     # Function to update the plot
     def update(self):
-        self.y[:-self.chunkSize] = self.y[self.chunkSize:]                 # Shift data, dropping oldest chunk
-        self.y[-self.chunkSize:] = self.data                               # Add new chunk
         self.curve.setData(self.x,self.y)                                  # Redraw
 
     # Function to open a virtual wire from mic to speakers
@@ -145,16 +142,17 @@ class OSCOPE_GUI(QtGui.QMainWindow):
             print(' ')
 
         # This is where the WIDTH influences the data format - keep it at 2 bytes for now --> int16
-        print( p.get_format_from_width(WIDTH) )
-        print( pyaudio.paFloat32, pyaudio.paInt32, pyaudio.paInt24,
+        print('nchan=',CHANNELS,'\tRate=',RATE)
+        print('fmt=',p.get_format_from_width(WIDTH))
+        print( 'All fmts:',pyaudio.paFloat32, pyaudio.paInt32, pyaudio.paInt24,
                pyaudio.paInt16, pyaudio.paInt8, \
                pyaudio.paUInt8, pyaudio.paCustomFormat )
-        
+
         self.stream = p.open(format=p.get_format_from_width(WIDTH),
                              channels=CHANNELS,
                              rate=RATE,
                              input=True,
-                             output=True,
+                             output=False,
                              stream_callback=self.wire_callback)
 
         self.stream.start_stream()
@@ -164,13 +162,18 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         # Update data for gui but we can't call the gui update from here since the audio callback
         # is in a different thread
         #print(in_data)
+        #print('WIRE_CB:',frame_count)
         #gui.data = np.fromstring(in_data, dtype=np.int16)
-        gui.data = np.frombuffer(in_data, dtype=np.int16)
+        data = np.frombuffer(in_data, dtype=np.int16)
         #print(gui.data)
 
-        if True:
+        n=len(data)
+        gui.y[:-n] = gui.y[n:]                 # Shift data, dropping oldest chunk
+        gui.y[-n:] = data                               # Add new chunk
+        
+        if True and gui.wf:
             #print(in_data)
-            self.wf.writeframesraw( in_data )
+            gui.wf.writeframesraw( in_data )
         
         return (in_data, pyaudio.paContinue)
 
@@ -201,17 +204,23 @@ if __name__ == "__main__":
             sys.exit(0)
 
     if True:
-        wf = wave.open('junk.wav','w')
+        #fname='junk.wav'
+        s=time.strftime("_%Y%m%d_%H%M%S", time.gmtime())      # UTC
+        dirname=''
+        fname = dirname+'capture'+s+'.wav'
+        wf = wave.open(fname,'w')
         wf.setnchannels(1)
         wf.setsampwidth(2) 
         wf.setframerate(RATE)
         gui.wf=wf
             
     # Setup a timer to update the plot at the chunk rate of the audio wire
-    timer = pg.QtCore.QTimer()
-    timer.timeout.connect(gui.update)
-    print( 1000.*gui.chunkSize/gui.fs )
-    timer.start(int(1000.*gui.chunkSize/gui.fs))
+    if True:
+        timer = pg.QtCore.QTimer()
+        timer.timeout.connect(gui.update)
+        tt= int( 1000.*gui.chunkSize/gui.fs )
+        print('tt (ms)=',tt)
+        timer.start(tt)
 
     print('And away we go ...')
     sys.exit(app.exec_())
