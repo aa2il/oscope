@@ -27,6 +27,7 @@ import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 import wave, struct
+from audio_io import WaveRecorder
 
 ################################################################################
 
@@ -59,6 +60,8 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         self.y = np.zeros(self.maxChunks*self.chunkSize)
         print('fs=',self.fs,len(self.x))
         self.wf=None
+        self.rec=None
+        self.p=None
 
         # Start by putting up the root window
         print('Init GUI ...')
@@ -98,7 +101,7 @@ class OSCOPE_GUI(QtGui.QMainWindow):
             sizePolicy = QtGui.QSizePolicy( QtGui.QSizePolicy.MinimumExpanding, 
                                             QtGui.QSizePolicy.MinimumExpanding)
             self.canvas.setSizePolicy(sizePolicy)
-        
+
         # Let's roll!
         self.resize(500,0)
         self.show()
@@ -106,11 +109,13 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         
     # Function to quit the app
     def Quit(self):
-        #self.rec.stop_recording()
+        if self.rec:
+            self.rec.stop_recording()
 
-        self.stream.stop_stream()
-        self.stream.close()
-        self.p.terminate()
+        if self.p:
+            self.stream.stop_stream()
+            self.stream.close()
+            self.p.terminate()
 
         if self.wf:
             #self.wf.writeframes('')
@@ -122,6 +127,21 @@ class OSCOPE_GUI(QtGui.QMainWindow):
 
     # Function to update the plot
     def update(self):
+        if self.rec:
+            rb=self.rec.rb
+            nsamps=rb.nsamps
+            if nsamps>self.chunkSize:
+                data=rb.pull(self.chunkSize)
+                n=len(data)
+                #print(n,nsamps)
+                self.y[:-n] = gui.y[n:]                 # Shift data, dropping oldest chunk
+                self.y[-n:] = data                      # Add new chunk
+
+                self.rec.write_data(data)               # Save to disk also
+                
+            else:
+                return
+                
         self.curve.setData(self.x,self.y)                                  # Redraw
 
     # Function to open a virtual wire from mic to speakers
@@ -157,21 +177,15 @@ class OSCOPE_GUI(QtGui.QMainWindow):
 
         self.stream.start_stream()
 
-    # Audio callback called when player need more samples
+    # Audio callback called when a chunk of data is available
     def wire_callback(self,in_data, frame_count, time_info, status):
-        # Update data for gui but we can't call the gui update from here since the audio callback
-        # is in a different thread
-        #print(in_data)
-        #print('WIRE_CB:',frame_count)
-        #gui.data = np.fromstring(in_data, dtype=np.int16)
         data = np.frombuffer(in_data, dtype=np.int16)
-        #print(gui.data)
 
         n=len(data)
         gui.y[:-n] = gui.y[n:]                 # Shift data, dropping oldest chunk
         gui.y[-n:] = data                               # Add new chunk
         
-        if True and gui.wf:
+        if False and gui.wf:
             #print(in_data)
             gui.wf.writeframesraw( in_data )
         
@@ -189,25 +203,27 @@ if __name__ == "__main__":
     gui  = OSCOPE_GUI(RATE)
 
     # Open audio loopback (virtual wire from mic to speakers)
-    gui.open_audio_wire()
+    #gui.open_audio_wire()
 
     # Start audio recorder
-    if False:
-        gui.rec = WaveRecorder('junk.wav', 'wb')
+    dirname=''
+    fname='junk.wav'
+    #fname = dirname+'capture'+s+'.wav'
+    if True:
+        
+        gui.rec = WaveRecorder(fname, 'wb',wav_rate=RATE)
         #idx=rec.list_input_devices('USB Audio CODEC')
         idx=gui.rec.list_input_devices('default')
         if idx:
             gui.rec.start_recording(idx)
-            time.sleep(5.0)
+            #time.sleep(5.0)
         else:
             print('Cant find radio USB Audio CODEC :-(')
             sys.exit(0)
 
-    if True:
-        #fname='junk.wav'
+    elif False:
+        
         s=time.strftime("_%Y%m%d_%H%M%S", time.gmtime())      # UTC
-        dirname=''
-        fname = dirname+'capture'+s+'.wav'
         wf = wave.open(fname,'w')
         wf.setnchannels(1)
         wf.setsampwidth(2) 
