@@ -2,7 +2,7 @@
 ################################################################################
 #
 # oscope.py - Rev 1.0
-# Copyright (C) 2021-2 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-4 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Audio oscilloscope and recorder
 #
@@ -69,7 +69,7 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         self.setCentralWidget(self.win)
         self.setWindowTitle('Audio Oscilloscope by AA2IL')
 
-        # We use a simple grid to layout controls
+        # Use a simple grid to layout controls
         self.grid = QtGui.QGridLayout(self.win)
         nrows=6
         ncols=5
@@ -212,8 +212,8 @@ if __name__ == "__main__":
     if True:
         
         gui.rec = WaveRecorder(fname, 'wb',wav_rate=RATE)
-        #idx=rec.list_input_devices('USB Audio CODEC')
-        idx=gui.rec.list_input_devices('default')
+        idx=gui.rec.list_input_devices('USB Audio CODEC')
+        #idx=gui.rec.list_input_devices('default')
         if idx:
             gui.rec.start_recording(idx)
             #time.sleep(5.0)
