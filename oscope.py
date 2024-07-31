@@ -25,7 +25,7 @@ import time
 import sys
 import numpy as np
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtGui, QtCore
+from pyqtgraph.Qt import QtWidgets
 import wave, struct
 from audio_io import WaveRecorder
 
@@ -46,7 +46,7 @@ colors=['b','g','r','c','m','y','k',
 ################################################################################
 
 # The GUI
-class OSCOPE_GUI(QtGui.QMainWindow):
+class OSCOPE_GUI(QtWidgets.QMainWindow):
 
     def __init__(self,fs):
         super(OSCOPE_GUI, self).__init__()
@@ -65,19 +65,19 @@ class OSCOPE_GUI(QtGui.QMainWindow):
 
         # Start by putting up the root window
         print('Init GUI ...')
-        self.win  = QtGui.QWidget()
+        self.win  = QtWidgets.QWidget()
         self.setCentralWidget(self.win)
         self.setWindowTitle('Audio Oscilloscope by AA2IL')
 
         # Use a simple grid to layout controls
-        self.grid = QtGui.QGridLayout(self.win)
+        self.grid = QtWidgets.QGridLayout(self.win)
         nrows=6
         ncols=5
 
         # Create a widget and add it to our layout
         row=0
         col=0
-        btn = QtGui.QPushButton('Quit')
+        btn = QtWidgets.QPushButton('Quit')
         btn.setToolTip('Quit Application')
         btn.clicked.connect(self.Quit)
         self.grid.addWidget(btn,row,col)
@@ -85,7 +85,7 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         # The Canvas is where we will put the plot
         row=1
         col=0
-        self.canvas = pg.GraphicsWindow()
+        self.canvas = pg.GraphicsLayoutWidget()
         self.grid.addWidget(self.canvas,row,col)
         self.p1 = self.canvas.addPlot()
         #self.p1.setLabel('bottom', 'Time', 's')
@@ -98,8 +98,8 @@ class OSCOPE_GUI(QtGui.QMainWindow):
         # Allow canvas size to change when we resize the window
         # but make is always visible
         if False:
-            sizePolicy = QtGui.QSizePolicy( QtGui.QSizePolicy.MinimumExpanding, 
-                                            QtGui.QSizePolicy.MinimumExpanding)
+            sizePolicy = QtQidgets.QSizePolicy( QtWidgets.QSizePolicy.MinimumExpanding, 
+                                            QtWidget.QSizePolicy.MinimumExpanding)
             self.canvas.setSizePolicy(sizePolicy)
 
         # Let's roll!
@@ -195,11 +195,17 @@ class OSCOPE_GUI(QtGui.QMainWindow):
 ################################################################################
 
 if __name__ == "__main__":
+    import argparse
 
     print('\n****************************************************************************')
     print('\n   Audio Oscilloscope beginning ...\n')
+
+    arg_proc = argparse.ArgumentParser(description='Audio Oscope')
+    arg_proc.add_argument("-id", help="Audio Device ID",
+                          type=int,default=None)
+    args = arg_proc.parse_args()
     
-    app  = QtGui.QApplication(sys.argv)
+    app  = QtWidgets.QApplication(sys.argv)
     gui  = OSCOPE_GUI(RATE)
 
     # Open audio loopback (virtual wire from mic to speakers)
@@ -214,6 +220,8 @@ if __name__ == "__main__":
         gui.rec = WaveRecorder(fname, 'wb',wav_rate=RATE)
         idx=gui.rec.list_input_devices('USB Audio CODEC')
         #idx=gui.rec.list_input_devices('default')
+        if args.id!=None:
+            idx=args.id
         if idx:
             gui.rec.start_recording(idx)
             #time.sleep(5.0)
