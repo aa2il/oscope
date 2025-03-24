@@ -1,8 +1,11 @@
-#! /usr/bin/python3
+#! /home/joea/miniconda3/envs/aa2il/bin/python -u
+#
+# NEW: /home/joea/miniconda3/envs/aa2il/bin/python -u
+# OLD: /usr/bin/python3 -u 
 ################################################################################
 #
 # oscope.py - Rev 1.0
-# Copyright (C) 2021-4 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-5 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
 #
 # Audio oscilloscope and recorder
 #
@@ -247,5 +250,5 @@ if __name__ == "__main__":
         timer.start(tt)
 
     print('And away we go ...')
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
     
